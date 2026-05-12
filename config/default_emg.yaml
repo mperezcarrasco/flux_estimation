@@ -1,0 +1,48 @@
+# NOx EMG flux configuration (`main.py nox`)
+# ------------------------------------------
+# Reference: notebooks/nox_estimation_emg.ipynb (Jin et al. 2021).
+# Override individual values with CLI flags.
+
+# --- TROPOMI quality-filter -----------------------------------------------
+tropomi:
+  qa_threshold: 0.5         # qa_value lower bound (Jin et al. retain smoke pixels)
+  ai_threshold: 2.0         # AER_AI plume mask threshold
+  no2_max_mol_m2: 1.0       # discard physically implausible NO2 columns
+
+# --- Spatial domain (cropping when reading L2 swaths) --------------------
+domain:
+  lat_min: -46.83
+  lat_max: -26.83
+  lon_min: -83.05
+  lon_max: -43.05
+
+# --- Aerosol injection-pressure selection (AER_LH plume match) -----------
+injection:
+  radius_km: 300.0          # radius around fire centroid for AER_LH match
+  min_pixels: 0             # min matched AER_LH pixels (0 = always trust median)
+  aggregation: median       # 'median' or 'max'
+  fallback_hpa: 900.0       # used only when AER_LH match fails (with warning)
+
+# --- Wind-frame scene extraction and gridding -----------------------------
+scene:
+  extraction_radius_km: 300.0     # max distance of NO2 pixels from fire centroid
+  downwind_min_km: -100.0         # rotated x grid edge (upwind)
+  downwind_max_km:  300.0         # rotated x grid edge (downwind)
+  crosswind_max_km: 100.0         # rotated y grid edge (cross-wind half-width)
+  grid_dy_km: 5.5                 # isotropic grid spacing (≈ 0.05° at 37°S)
+  earth_radius_km: 6371.0
+
+# --- EMG fitting ----------------------------------------------------------
+emg:
+  bootstrap_iterations: 50        # number of curve_fit attempts with perturbed p0
+  bootstrap_seed: 42              # RNG seed for reproducibility
+  perturbation_low: 0.8           # multiplicative perturbation of p0 (lower)
+  perturbation_high: 1.2          # multiplicative perturbation of p0 (upper)
+  curve_fit_maxfev: 5000
+  cv_stability_threshold: 0.5     # max acceptable CV(E_emg) and CV(a)
+  peak_offset_km_max: 30.0        # max acceptable distance of fitted peak from origin
+
+# --- Physical constants ---------------------------------------------------
+physics:
+  no2_molar_mass_g_per_mol: 46.005
+  nox_no2_ratio_gamma: 1.32       # Jin et al. (2021) Table S1

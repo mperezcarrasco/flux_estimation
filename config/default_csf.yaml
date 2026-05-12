@@ -1,0 +1,52 @@
+# CO Cross-Sectional Flux configuration (`main.py co`)
+# ----------------------------------------------------
+# Reference: notebooks/co_estimation_csf.ipynb — AER_LH-pressure-level
+# wind variant only. Override individual values with CLI flags.
+
+# --- TROPOMI quality-filter -----------------------------------------------
+tropomi:
+  qa_threshold: 0.5
+  ai_threshold: 2.0          # AER_AI plume mask threshold
+
+# --- Spatial domain (cropping when reading L2 swaths) --------------------
+domain:
+  lat_min: -66.83
+  lat_max:  -6.83
+  lon_min: -103.05
+  lon_max:  -43.05
+
+# --- Aerosol injection-pressure selection (AER_LH plume match) -----------
+injection:
+  radius_km: 300.0
+  min_pixels: 20            # CSF requires denser AER_LH coverage than EMG
+  aggregation: median
+  fallback_hpa: 800.0
+
+# --- Gridding -------------------------------------------------------------
+grid:
+  spacing_deg: 0.25         # CO regridding cell size (matches notebook)
+
+# --- Plume mask post-processing ------------------------------------------
+plume_mask:
+  # Optional: clip rows above this latitude index to remove northern
+  # retrieval artefacts. Set to null to disable clipping.
+  clip_north_idx: 160
+
+# --- Background subtraction (Change D — far-upwind median) ---------------
+background:
+  # Window in rotated coordinates (downwind axis). Negative = upwind.
+  bg_x_min_km: -300.0
+  bg_x_max_km: -200.0
+  min_pixels: 10            # min upwind pixels before falling back to 1st percentile
+
+# --- Cross-Sectional Flux integration ------------------------------------
+csf:
+  n_transects: 10
+  transect_half_width_km: 100.0   # half-length perpendicular to local wind
+  aggregation: mean               # how to collapse per-transect fluxes ('mean' | 'median')
+
+# --- Physical constants ---------------------------------------------------
+physics:
+  co_molar_mass_kg_per_mol: 0.02801
+  earth_radius_km: 6371.0
+  m_per_deg_lat: 111320.0

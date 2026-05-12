@@ -1,0 +1,30 @@
+# MODIS fire-cluster configuration (`main.py cluster`)
+# ---------------------------------------------------
+# All parameters are required. Override individual values with CLI flags.
+# Reference implementation: notebooks/temporal_fire_hotspot_detection.ipynb
+
+# --- Spatial domain (used for input pixel filtering) ----------------------
+domain:
+  lat_min: -66.83        # degrees N
+  lat_max:  -6.83
+  lon_min: -103.05       # degrees E
+  lon_max:  -43.05
+
+# --- MODIS pixel filtering ------------------------------------------------
+modis:
+  min_confidence: 75      # MCD14DL confidence threshold (0-100)
+  daytime_only: true      # require daynight == 'D'
+  satellite: Aqua         # filter to one satellite ('Aqua', 'Terra', or null for both)
+
+# --- Single-linkage hierarchical clustering -------------------------------
+clustering:
+  link_method: complete           # scipy linkage method ('single' | 'complete' | 'average')
+  cluster_radius_km: 20.0         # cut-distance threshold (km), Jin et al. (2021)
+  earth_radius_km: 6371.0         # for Haversine distances
+
+# --- Dominant cluster selection -------------------------------------------
+dominant:
+  search_lat: -36.83              # anchor latitude (Concepción by default)
+  search_lon: -73.05              # anchor longitude
+  search_radius_km: 300.0         # max distance from anchor for dominant cluster
+  min_frp_mw: 100.0               # minimum mean cluster FRP for the day to be valid
