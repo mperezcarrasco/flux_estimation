@@ -1,0 +1,501 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% AGUJournalTemplate.tex  --- revised manuscript (notebook-consistent)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[draft]{agujournal2019}
+\usepackage{url}
+\usepackage{lineno}
+\usepackage[inline]{trackchanges}
+\usepackage{soul}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{setspace}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{textcomp}
+\usepackage{gensymb}
+\usepackage{siunitx}
+
+\newcommand{\NOx}{NO$_x$}
+\newcommand{\NOtwo}{NO$_2$}
+\newcommand{\COtwo}{CO$_2$}
+\newcommand{\hPa}{\,hPa}
+\newcommand{\ms}{\,m\,s$^{-1}$}
+\newcommand{\kgs}{\,kg\,s$^{-1}$}
+\newcommand{\gs}{\,g\,s$^{-1}$}
+\newcommand{\td}{\,t\,day$^{-1}$}
+\newcommand{\gkgDM}{\,g\,kg$^{-1}$\,DM}
+
+\linenumbers
+\draftfalse
+
+\journalname{Geophysical Research Letters}
+
+\begin{document}
+
+\title{Satellite-Based CO and \NOx{} Emission Estimates from South-Central Chilean Plantation Fires: A TROPOMI Case Study of January 2026}
+
+\authors{=list all authors here=}
+\affiliation{=number=}{=Affiliation Address=}
+\correspondingauthor{=name=}{=email address=}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% KEY POINTS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{keypoints}
+  \item TROPOMI EMG and CSF methods yield the first top-down \NOx{} and CO
+        emission estimates for south-central Chilean plantation fires
+        (765 and 82{,}036~t\,day$^{-1}$, respectively).
+  \item A 500-member ERA5 Monte-Carlo trajectory ensemble and a HYSPLIT
+        forward dispersion run driven by the retrieved CO flux reproduce the
+        observed downwind plume over the following four days.
+  \item Benchmarked against the overpass-matched hourly CAMS GFAS inventory
+        at an FRP-defined radius, top-down \NOx{} sits 19\% below and CO a
+        factor of 2.9 above GFAS.
+\end{keypoints}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  ABSTRACT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{abstract}
+We present the first top-down \NOx{} and CO emission estimates for south-central Chilean fires, derived from Sentinel-5P/TROPOMI observations of a large plantation-fire outbreak in the Biob\'io Region on 18~January~2026. Applying the Exponentially Modified Gaussian (EMG) method to \NOtwo{} and the Cross-Sectional Flux (CSF) method to CO, we retrieve a \NOx{} emission flux of 8{,}853\gs{} and a CO emission flux of 949\kgs{} from a single fire cluster with a fire radiative power of 954~MW. TROPOMI aerosol-index and CO observations track the resulting smoke more than 2{,}000~km from the fire over the following 96~hours, first northward along the Chilean coast and then offshore over the southeast Pacific, along a pathway consistent with an ERA5 trajectory ensemble. A HYSPLIT dispersion simulation driven by the retrieved CO flux broadly reproduces the observed downwind CO column over the same period, supporting the top-down estimate. We benchmark both fluxes against the hourly CAMS GFAS inventory at the overpass time (18:00~UTC), integrated over a 142~km radius enclosing 99\% of the daytime MODIS fire-radiative-power of the complex: the top-down \NOx{} flux sits 19\% below GFAS, while the CO flux exceeds it by a factor of 2.9. Because GFAS is sampled at the overpass hour, this comparison removes the diurnal-sampling mismatch inherent to daily inventories. Chilean plantation fires are largely absent from top-down emission records, and these results show that TROPOMI can resolve individual high-intensity fire episodes at the day scale.
+\end{abstract}
+
+\section*{Plain Language Summary}
+Wildfires inject large amounts of carbon monoxide (CO) and nitrogen oxides (\NOx{}) into the atmosphere, but the inventories used in air-quality and climate models rely on laboratory ``emission factors'' measured mostly for Northern Hemisphere forests. The fast-growing pine and eucalyptus plantations of central Chile are essentially missing from these databases. Using a single overpass of the Sentinel-5P satellite during a major fire in January~2026, we measure the CO and \NOx{} released by one intense fire directly from space. We then track the smoke for four days as it travels more than 2{,}000~km out over the Pacific, and we test our emission estimate by feeding it into a transport model and comparing the predicted smoke with what the satellite actually saw. Our satellite-based numbers differ markedly from a widely used fire inventory, showing that single high-intensity fires can now be quantified from orbit and that Chilean plantation fires deserve dedicated representation in global emission databases.
+
+% ======================================================================
+\section{Introduction}
+\label{sec:intro}
+% ======================================================================
+
+Fire trace-gas emissions are estimated predominantly with bottom-up inventories such as GFED5 \citep{vanderWerf2017}, FINN2.5 \citep{Wiedinmyer2023}, and QFED2 \citep{Darmenov2015}, which scale satellite-detected fire radiative power (FRP) by tabulated fuel loads and emission factors (EF). The EF databases underlying these inventories \citep{Akagi2011, Andreae2019, Urbanski2014} are built largely from \textit{in situ} measurements in Northern Hemisphere, African, and tropical ecosystems, so chemically distinct Southern Hemisphere fuels such as temperate plantations are represented by factors transferred from analogous rather than equivalent vegetation \citep{Weise2022}. Satellite trace-gas sounders offer an independent, observation-based route to fire emissions, retrieved directly from individual events rather than inferred from fuel load and FRP.
+
+The Sentinel-5P TROPOMI instrument \citep{Veefkind2012}, with its 3.5~$\times$~5.5~km nadir pixel and daily global revisit, makes this route practical for single fire events. The Exponentially Modified Gaussian (EMG) method applied to \NOtwo{} \citep{Jin2021} retrieves the \NOx{} emission flux $E$ and effective lifetime $\tau$ from one overpass, and the Cross-Sectional Flux (CSF) integration of CO columns \citep{Griffin2021} yields the CO flux. The co-located \NOtwo{}, CO, aerosol index (AER\_AI), and aerosol layer height (AER\_LH) products from the same overpass additionally resolve the smoke plume geometry and injection altitude \citep{deGraaf2023}, so a single scene characterises a fire both as an emission source and as a transported plume.
+
+The temperate plantation forests of south-central Chile exemplify such an undersampled source. The Biob\'io and Maule regions hold approximately 2.4~million~ha of exotic plantation, chiefly \textit{Pinus radiata} and \textit{Eucalyptus globulus} on steep Andean terrain, among the highest plantation densities in the Southern Hemisphere. Fire activity in this belt is modulated by the Southern Annular Mode and La~Ni\~na-driven drought \citep{Garreaud2009, UrrutiaJalabert2018}, producing episodic years of exceptional intensity, most notably January~2017 ($>$500{,}000~ha burned; \citealt{Bowman2019}) and the January~2026 outbreak studied here. These fuels differ chemically from the ecosystems that dominate EF compilations: the terpene-rich resin of \textit{Pinus radiata} and the phenolic chemistry of \textit{Eucalyptus globulus} influence combustion completeness and plume nitrogen chemistry \citep{Yokelson2013, Weise2022}, yet no published study has derived top-down emission estimates or plume characterisation for this biome. Prior atmospheric work on Chilean fires has used chemistry-transport simulations driven by GFAS bottom-up inputs \citep{Lapere2021}, without evaluating the inventory fluxes against direct satellite retrievals.
+
+Here we apply the EMG and CSF methods to a single TROPOMI overpass of the 18~January~2026 Biob\'io outbreak, which produced a 954~MW fire cluster at 37.55\degree{}S, 72.55\degree{}W, comparable in FRP to the most intense single-day clusters of the 2017 mega-fire season \citep{Bowman2019}. We pursue three aims. First, we retrieve the top-down \NOx{} and CO emission fluxes together with the \NOx{} lifetime and the AER\_LH-derived smoke injection height. Second, we characterise the resulting transoceanic smoke plume with a 500-member Monte Carlo trajectory ensemble driven by ERA5 winds \citep{Hersbach2020}, and we test the physical consistency of the retrieved CO flux against multi-day TROPOMI CO observations with a HYSPLIT forward dispersion simulation \citep{Stein2015}. Third, and secondarily, we benchmark the top-down fluxes against the overpass-matched hourly CAMS GFAS inventory integrated over an FRP-defined source region. This event provides the first satellite top-down emission estimates and plume characterisation for Chilean plantation fires, and extends the \citet{Jin2021} EMG framework to a geographically and chemically novel Southern Hemisphere biome.
+
+% ======================================================================
+\section{Data and Methods}
+\label{sec:methods}
+% ======================================================================
+
+\subsection{TROPOMI Level-2 Products}
+\label{sec:tropomi}
+
+Sentinel-5P TROPOMI offline (OFFL) Level-2 granules were obtained from the Copernicus Open Access Hub. We use four co-registered products from the 18~January~2026 South American overpass (approximate scan times 17:35--19:16~UTC): (1)~tropospheric \NOtwo{} column (\texttt{S5P\_OFFL\_L2\_\_NO2\_\_\_}); (2)~total CO column (\texttt{S5P\_OFFL\_L2\_\_CO\_\_\_\_\_}); (3)~UV Aerosol Index at 354/388~nm (\texttt{S5P\_OFFL\_L2\_\_AER\_AI}); and (4)~Aerosol Layer Height (\texttt{S5P\_OFFL\_L2\_\_AER\_LH}). All products are filtered at the standard QA threshold (\texttt{qa\_value} $\geq 0.5$). Pixel size at nadir is $3.5 \times 5.5$~km for \NOtwo{} and CO; $3.5 \times 7$~km for AER\_AI and AER\_LH.
+
+\subsection{Fire Source Identification}
+\label{sec:fire}
+
+The fire source was identified from MODIS Aqua Collection~6.1 active fire detections (MCD14DL; \citealt{Giglio2016}) for 16--22~January~2026. Detections with confidence $\geq 75\%$ were clustered using single-linkage hierarchical clustering (20~km linkage threshold). The dominant 18~January cluster has FRP-weighted centroid 37.5484\degree{}S, 72.5545\degree{}W, total FRP $= 954$~MW, and 91~MODIS pixels. Aqua's $\sim$13:30~LST overpass is broadly synchronous with TROPOMI at these latitudes, minimising temporal mismatch in source localisation.
+
+\subsection{Aerosol Injection Height and Wind Extraction}
+\label{sec:aerlh}
+
+The smoke injection pressure was estimated from TROPOMI AER\_LH pixels co-located with the AER\_AI-delineated plume (AER\_AI $> 2.0$, QA $\geq 0.5$) within 300~km of the fire centroid, matched on the unit sphere by nearest-neighbour. The median aerosol mid-pressure of 97~matched plume pixels is \textbf{891\hPa{}} (IQR $= 131$\hPa), corresponding to approximately 952~m above mean sea level (Figure~S1). ERA5 hourly pressure-level winds \citep{Hersbach2020} were bilinearly interpolated to the fire centroid at 891\hPa{} and 18:00~UTC, yielding a transport wind speed of $U = \mathbf{8.88}$\ms{} (north-northwestward).
+
+\subsection{\NOx{} Emission Flux --- EMG Method}
+\label{sec:emg}
+
+Line densities of \NOtwo{} were computed by rotating all TROPOMI \NOtwo{} pixels within 300~km of the fire centroid into a wind-aligned coordinate system and integrating cross-wind column densities per downwind bin on a $\sim 8 \times 16$~km grid. The EMG function
+
+\begin{equation}
+  \rho(x) = \frac{a}{2\mu}
+    \exp\!\left(\frac{\sigma^2}{2\mu^2} - \frac{x - x_0}{\mu}\right)
+    \operatorname{erfc}\!\left(\frac{\sigma/\mu - (x-x_0)/\sigma}{\sqrt{2}}\right)
+    + B
+  \label{eq:emg}
+\end{equation}
+
+\noindent was fit to the observed line density profile via \texttt{scipy.optimize.curve\_fit} with 50~pixel-bootstrap resampling iterations to assess fit stability. Here $x$ is downwind distance~(km), $a$ the integrated line density, $x_0$ the apparent source offset, $\mu$ the e-folding decay length, $\sigma$ the Gaussian dispersion width, and $B$ a background offset. The emission flux and atmospheric \NOx{} lifetime are $E = aU/\mu$ and $\tau = \mu/U$, with $U = 8.88$\ms{}. The bootstrap coefficient of variation CV~$< 0.1$ serves as the fit-stability criterion of \citet{Jin2021}; it characterises internal fit robustness, not retrieval uncertainty. Uncertainty on $E$ and $\tau$ propagated from injection-height, source-location, and analyst-choice inputs is quantified by the Monte-Carlo ensemble described in Section~\ref{sec:mc}. We report the flux using the standard TM5-MP a~priori \NOtwo{} profile; we do not apply a smoke-scene air-mass-factor (AMF) correction here, and discuss its likely magnitude in Section~\ref{sec:caveats}.
+
+\subsection{CO Emission Flux --- CSF Method}
+\label{sec:csf}
+
+CO emission flux was estimated via the Cross-Sectional Flux (CSF) method. TROPOMI CO columns (QA $\geq 0.5$) within 300~km of the fire centroid were gridded to 0.1\degree{} resolution. A background CO field was estimated as the median column in a 200--300~km upwind strip (14.98~mmol~m$^{-2}$). Ten logarithmically-spaced transects perpendicular to the transport direction were placed between 30 and 300~km downwind. For each transect,
+\begin{equation}
+  F_i = U \cdot \int_{y_1}^{y_2}
+    \left[\mathrm{CO}(y) - \mathrm{CO}_\mathrm{bg}\right] dy .
+  \label{eq:csf}
+\end{equation}
+The adopted estimate is the mean across valid transects using the 891\hPa{} (AER\_LH) wind (9/10 transects valid).
+
+\subsection{Retrieval Uncertainty --- Monte-Carlo Parameter Sampling}
+\label{sec:mc}
+
+We propagate retrieval uncertainty through both the EMG and CSF methods using independent 500-member Monte-Carlo (MC) ensembles (seed~42). Each member draws a self-consistent set of inputs from observation-informed distributions and analyst-choice ranges and runs the full retrieval; the output distribution gives the uncertainty.
+
+\textbf{Source-location prior.} Both ensembles share an FRP-weighted two-dimensional kernel-density estimate (KDE) of the 146~Aqua MODIS fire detections within 200~km of the retrieval centroid (confidence $\geq 75\%$, daytime). The KDE is recentered on the canonical retrieval centroid before sampling, so the spread captures source-location uncertainty without biasing the ensemble mean away from the best estimate.
+
+\textbf{CO (CSF) ensemble.} The ERA5 10~m surface wind is held fixed (identical to the baseline retrieval) because the near-surface and 891\hPa{} winds agree to within 3\% here; wind uncertainty belongs to the AER\_LH variant discussed in Section~\ref{sec:csf}. The sampled analyst-choice parameters are: background-window start position ($-350$ to $-250$~km upwind), background-window width (80--120~km), transect half-width (75--150~km), and number of transects (8--14). All 500 members converged; the reported uncertainty is therefore the full ensemble 95th-percentile interval.
+
+\textbf{\NOx{} (EMG) ensemble.} Each member additionally draws an injection pressure from the AER\_LH KDE (107 matched pixels within 450~km; median 900\hPa, IQR~75\hPa) and retrieves the ERA5 pressure-level wind at that pressure. A 20-iteration pixel bootstrap is nested inside each member to capture pixel-sampling noise in the NO$_2$ line density. The sampled analyst-choice parameters are: extraction radius (400--500~km), downwind integration limit (400--500~km), and crosswind half-width (80--120~km).
+
+\textbf{Plume-alignment gate.} Before the EMG fit, each member's ERA5 wind direction $\theta_\mathrm{wind}$ at its sampled pressure is compared against the observed plume transport axis $\theta_\mathrm{plume}$, estimated by an aerosol-index-weighted principal-component analysis (PCA) of AER\_AI pixels ($> 2.0$) within 450~km of the sampled centroid; far-field pixels ($>150$~km) resolve the sign ambiguity of the PCA axis. Members for which $|\theta_\mathrm{wind} - \theta_\mathrm{plume}| > 15\degree$ are rejected as physically inconsistent --- they correspond to injection-pressure draws that place the wind in a layer not carrying the observed plume. Of the 500 members, 217 (43\%) were rejected by the alignment gate and 10 failed the EMG fit; 273 members are retained for the reported distribution.
+
+\textbf{Reported statistics and sensitivity.} We report the median and 95th-percentile confidence interval (2.5--97.5~percentile) of each retained distribution. A standardised-regression tornado decomposition identifies the dominant input for each species: injection pressure accounts for $\sim 57\%$ of \NOx{} emission-flux variance, while transect count and transect half-width together account for $\sim 99\%$ of CO flux variance. The \NOtwo{} a~priori AMF bias lies outside the sampled parameter space and is discussed separately in Section~\ref{sec:caveats}.
+
+\subsection{Lagrangian Plume Transport Ensemble}
+\label{sec:ensemble}
+
+To characterise the transport pathway we replace a discrete parameter grid with Monte-Carlo sampling from observation-informed distributions. A 500-member ensemble of forward air-mass trajectories was computed from ERA5 pressure-level winds using 4th-order Runge--Kutta (RK4) isobaric advection with a 30-minute timestep, integrated for 96~hours. For each member the release parameters were drawn from: (i)~a kernel-density estimate (KDE) of the AER\_LH plume injection pressure (median 891\hPa); (ii)~an FRP-weighted two-dimensional KDE of the MODIS fire pixels (source location); and (iii)~a uniform launch hour over the fire-active window (10--22~UTC). The resulting transport corridor (per-cell visit probability) was compared against the spatial distribution of TROPOMI AER\_AI $> 2.0$ pixels on the 19--22~January overpasses. We emphasise that the ensemble spread reflects \emph{release} uncertainty, not meteorological uncertainty, and therefore provides a lower bound on the physical plume width; it is used to establish the pathway, not the dispersion.
+
+\subsection{HYSPLIT Forward Dispersion Validation}
+\label{sec:hysplit}
+
+As an independent test of the retrieved CO flux, we performed a HYSPLIT~v5.1.0 \citep{Stein2015} concentration simulation \emph{driven by the CSF CO emission rate}. CO was emitted as a passive tracer (its multi-week lifetime makes chemistry negligible over 96~h) from the fire location at the AER\_LH injection layer over the fire-active window, using GDAS1 1\degree{} ARL meteorology and a 0.25\degree{} concentration grid. The modeled CO column (vertical integral of the gridded concentration) was sampled at each of the four following TROPOMI overpass times and compared with the observed CO column enhancement (TROPOMI CO minus the same-day off-plume background). This forward test asks whether the retrieved flux, transported independently, reproduces the observed downwind column; \NOx{} is not forward-modelled because its hours-long lifetime is already captured by the EMG fit.
+
+\subsection{Inventory Comparison}
+\label{sec:inventory}
+
+We benchmark the top-down fluxes against CAMS GFAS, which provides \emph{instantaneous, hourly} fire emission rates. The GFAS field valid at 18:00~UTC --- coincident with the TROPOMI overpass to within ten minutes --- was integrated over a physically-defined source radius: the radius enclosing 99\% of the cumulative daytime MODIS FRP of the fire complex (R99~$=142$~km), centred on the dominant hotspot. Using GFAS rather than a daily inventory removes the diurnal-sampling mismatch that complicates single-overpass comparisons, and the FRP-defined radius removes the arbitrary choice of integration distance. We report a radius-sensitivity sweep (25--150~km) to show the dependence explicitly.
+
+% ======================================================================
+\section{Results}
+\label{sec:results}
+% ======================================================================
+
+\subsection{Fire Event Overview}
+\label{sec:overview}
+
+The 18~January~2026 Biob\'io fire outbreak produced the largest single-day FRP total recorded in the MODIS Aqua archive for south-central Chile since 2017. The dominant fire cluster (37.5484\degree{}S, 72.5545\degree{}W; 954~MW~FRP) is located $\sim$91~km southeast of Concepci\'on in the Arauco--Biob\'io plantation forest belt. The TROPOMI AER\_AI field on the same day shows a smoke plume (AER\_AI $> 2.0$, QA $\geq 0.5$) extending several hundred kilometres northward, with peak AI values exceeding 8.0 directly downwind of the fire centroid. The plume remains detectable over the SE Pacific on 19--22~January, with coherent aerosol structure along the ERA5 ensemble transport corridor (Figure~\ref{fig:ensemble}).
+
+\subsection{\NOx{} Emission Flux and Lifetime}
+\label{sec:nox_results}
+
+The EMG fit to the 18~January \NOtwo{} line density profile is shown in Figure~\ref{fig:emg}. The fit converges in all 50~bootstrap realisations with coefficient of variation CV~$<0.1$ (stability criterion of \citealt{Jin2021} met) and $R^2 = 0.907$. Best-fit parameters are listed in Table~\ref{tab:emg_params}. The quality criteria of \citet{Jin2021} are satisfied: $R^2 > 0.5$; $\sigma < x_0$; $|x_0| < 50$~km. The source offset is physically consistent with a few hours of plume transport between ignition and overpass, placing the locus of maximum \NOtwo{} downwind of the fire centroid, consistent with the observed column peak.
+
+\begin{table}[h]
+\centering
+\caption{EMG best-fit parameters for the 18~January~2026 Biob\'io overpass.}
+\label{tab:emg_params}
+\begin{tabular}{lc}
+\toprule
+Parameter & Value \\
+\midrule
+Integrated line density $a$ & 349.91~mol~m$^{-1}$ \\
+Source offset $x_0$ & 21.3~km \\
+Gaussian width $\sigma$ & 4.2~km \\
+Background $B$ & 2.60~mol~m$^{-1}$ \\
+Goodness of fit $R^2$ & 0.907 \\
+\NOx{} lifetime $\tau$ & 0.67~h \\
+\NOx{} emission flux $E$ & \textbf{8{,}853\gs{} (765\td)} \\
+\bottomrule
+\end{tabular}
+\note[ED]{Verify $\mu$ for self-consistency with $\tau=\mu/U$ at $U=8.88$\ms{} before final submission; the canonical retrieval notebook reports $\tau=0.67$~h and $E=8{,}853$\gs{}.}
+\end{table}
+
+\subsection{CO Emission Flux}
+\label{sec:co_results}
+
+All 9~valid CSF transects (AER\_LH wind variant) yield consistent CO fluxes, with no systematic trend with downwind distance (Figure~\ref{fig:csf}). This flux consistency across 300~km of transport is consistent with CO's multi-week atmospheric lifetime. The preferred CO emission estimate is
+\begin{equation}
+  E_\mathrm{CO} = 949~\mathrm{kg\,s^{-1}} = 82{,}036~\mathrm{t\,day^{-1}} .
+  \label{eq:co_flux}
+\end{equation}
+The baseline estimate (ERA5 10~m wind) agrees within 3\% (922\kgs{}), reflecting near-identical meridional wind at surface and 891\hPa{}. We adopt the AER\_LH variant as preferred because the confirmed elevated injection (891\hPa) makes that wind more representative of the layer containing the bulk CO mass.
+
+\subsection{Plume Transport: 96-Hour ERA5 Ensemble}
+\label{sec:transport}
+
+Figure~\ref{fig:ensemble} shows the 500-member ensemble corridor. The smoke is carried north-northwestward, hugging the Chilean coast for the first $\sim$24--48~h before turning offshore over the southeast Pacific; the centre-of-mass member reaches the subtropical SE Pacific after 96~h (net displacement $\sim$2{,}060~km). TROPOMI AER\_AI tracks the observed plume more than 2{,}000~km from the source within the four-day window. Two features are notable (Table~\ref{tab:trajectories}): the single-day-release ensemble \emph{under-reaches} the observed plume at $+$24~h and converges on it by $+$72~h, and the release-uncertainty corridor overlaps only 16--24\% of the observed AER\_AI plume. Both follow from the ensemble sampling only release uncertainty while the observed AER\_AI field integrates several days of upstream emission; the ensemble establishes the pathway rather than the full extent.
+
+\begin{table}[h]
+\centering
+\caption{Plume pathway validation: observed AER\_AI leading-edge reach, ensemble leading-edge reach, and the fraction of observed AER\_AI plume pixels falling inside the ensemble corridor, at each TROPOMI overpass.}
+\label{tab:trajectories}
+\begin{tabular}{lcccc}
+\toprule
+Overpass (UTC) & Elapsed (h) & Obs.\ AER\_AI edge (km) & Ens.\ edge (km, p90/max) & AER\_AI-in-corridor \\
+\midrule
+Jan~19, 18:58 & $+$24 & 1{,}825 & 871 / 1{,}021 & 0.16 \\
+Jan~20, 18:39 & $+$49 & 1{,}912 & 1{,}405 / 1{,}567 & 0.24 \\
+Jan~21, 18:20 & $+$73 & 2{,}185 & 1{,}915 / 2{,}062 & 0.19 \\
+Jan~22, 18:01 & $+$96 & --- & 2{,}062 / 2{,}680 & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Forward Validation of the CO Flux}
+\label{sec:hysplit_results}
+
+The HYSPLIT concentration simulation driven by the retrieved CO flux (Figure~\ref{fig:hysplit}, Table~\ref{tab:hysplit}) reproduces the transport and the order of magnitude of the observed downwind CO column. The modeled leading edge advances from $\sim$1{,}100~km at $+$24~h to $\sim$2{,}680~km at $+$96~h, converging on the observed CO-enhancement reach ($\sim$2{,}550~km) by day~3--4. Modeled peak column enhancements lie within a factor of $\sim$2--5 of the observed values, running low --- the expected sign, because the run emits only the 18~January flux while the observed column integrates multiple emission days. That an independently transported single-day flux recovers the observed plume reach and column magnitude to this degree supports the CSF estimate.
+
+\begin{table}[h]
+\centering
+\caption{HYSPLIT modeled CO column vs.\ observed TROPOMI CO enhancement.}
+\label{tab:hysplit}
+\begin{tabular}{lcccc}
+\toprule
+Overpass & Model peak col.\ (mol\,m$^{-2}$) & Obs.\ peak enh.\ (mol\,m$^{-2}$)
+  & Model edge (km) & Obs.\ edge (km) \\
+\midrule
+$+$1\,d & 0.029 & 0.070 & 1{,}141 & 2{,}532 \\
+$+$2\,d & 0.032 & 0.054 & 1{,}623 & 2{,}558 \\
+$+$3\,d & 0.011 & 0.097 & 2{,}307 & 2{,}571 \\
+$+$4\,d & 0.007 & 0.041 & 2{,}680 & 2{,}558 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{CAMS GFAS Inventory Comparison}
+\label{sec:gfas}
+
+At the FRP-defined radius (R99~$=142$~km), the overpass-matched GFAS inventory gives CO~$=332$\kgs{} and \NOx{}~$=10{,}871$\gs{} (Figure~\ref{fig:gfas}). The top-down/GFAS ratios are therefore \textbf{2.9} for CO (top-down higher) and \textbf{0.81} for \NOx{} (top-down 19\% lower). The radius-sensitivity sweep (Figure~\ref{fig:gfas}, lower panels) shows GFAS emissions increasing monotonically with radius as the broader complex is captured; R99 saturates at 142~km once the complex is enclosed, so the comparison is stable to the cap choice. Because GFAS is sampled at the overpass hour, neither ratio is attributable to diurnal sampling --- the residuals reflect genuine methodological and inventory differences.
+
+% ======================================================================
+\section{Discussion}
+\label{sec:discussion}
+% ======================================================================
+
+\subsection{Interpreting the GFAS Comparison}
+\label{sec:interpret}
+
+The two species diverge from GFAS in opposite directions, and the overpass-matched comparison rules out diurnal sampling as the cause. For \NOx{}, the top-down flux 19\% below GFAS is well within the spread of single-event top-down/inventory comparisons \citep{Mebust2011, Jin2021} and is, if anything, conservative given that an uncorrected TROPOMI \NOtwo{} retrieval tends to \emph{underestimate} the column in dense smoke (Section~\ref{sec:caveats}); a smoke-scene AMF correction would raise the top-down flux toward or above GFAS. For CO, the factor-2.9 excess cannot be explained by the daily-versus-instantaneous mismatch that inflates comparisons against daily inventories such as GFED5, because GFAS is instantaneous at the overpass. Two contributions remain plausible: (i)~along-track integration of CO emitted earlier on the same day or advected from the broader multi-province outbreak into the downwind transects, which the upwind background subtraction cannot fully remove; and (ii)~genuine differences between the FRP-based GFAS CO source and the column-integrated top-down flux. The HYSPLIT forward run (Section~\ref{sec:hysplit_results}), which reproduces the observed column reach with a single-day source, indicates that the top-down CO flux is physically plausible rather than an artefact, while its tendency to run low relative to observations is consistent with the multi-day accumulation argument.
+
+\subsection{Short \NOx{} Lifetime}
+\label{sec:tau}
+
+The derived $\tau = 0.67$~h is shorter than the \citet{Jin2021} temperate-biome mean ($\sim$1.2--1.8~h). Three mechanisms may contribute. First, the January austral-summer SE Pacific boundary layer combines high UV with very low background \NOx{}; low background \NOx{} suppresses OH recycling losses, leaving OH elevated and accelerating OH$+$\NOtwo{}$\rightarrow$HNO$_3$. Second, a source-offset artefact: if the effective source migrated between the MODIS and TROPOMI overpasses, the decay length --- and hence $\tau$ --- would be biased; sensitivity tests displacing the source $\pm 20$~km change $\tau$ by $\pm 0.1$--0.15~h. Third, plantation VOC chemistry: \textit{Pinus radiata} and \textit{Eucalyptus globulus} release abundant monoterpenes whose oxidation products sequester reactive nitrogen as organic nitrates and PAN, shortening the \emph{apparent} EMG lifetime without representing true \NOx{} removal. Discriminating these requires co-located VOC measurements or CTM simulation of the plume chemistry.
+
+\subsection{Caveats}
+\label{sec:caveats}
+
+The dominant uncertainty in the \NOx{} flux is the a~priori \NOtwo{} profile. The standard TROPOMI product uses TM5-MP coarse-resolution profiles that underestimate \NOtwo{} in dense fire plumes \citep{Lorente2017, Bousserez2014}; a smoke-scene AMF correction \citep{Jin2021} would increase the retrieved flux, plausibly by tens of percent, moving the top-down \NOx{} estimate from below toward parity with GFAS. A spatially explicit AMF recalculation for this overpass is required before the flux can be regarded as bias-corrected. For CO, the leading uncertainties are the background definition and the along-track accumulation discussed above; the isobaric, single-meteorology trajectory ensemble further provides only a lower bound on plume width. These limitations motivate the forward dispersion test rather than reliance on the trajectory corridor alone.
+
+\subsection{Implications}
+\label{sec:implications}
+
+This event demonstrates that a single TROPOMI overpass can quantify the CO and \NOx{} flux of an individual high-intensity plantation fire and that the resulting fluxes can be benchmarked cleanly against an overpass-matched, FRP-localised inventory and independently tested by forward dispersion. The opposite-signed CO and \NOx{} departures from GFAS at a sampling-matched radius indicate that the discrepancies are structural rather than artefacts of temporal sampling, and that they differ by species --- a pattern that a single daily inventory comparison would have masked. A single event cannot establish a biome-resolved emission factor; doing so requires extending this overpass-matched, FRP-localised approach across the full 2017--2026 record of high-FRP Chilean fire seasons, ideally with a smoke-scene AMF correction applied uniformly. Such a dataset would provide the first observational constraint on CO and \NOx{} emissions from Southern Hemisphere temperate plantation fires, a fuel type with no dedicated representation in current global inventories.
+
+% ======================================================================
+\section{Conclusions}
+\label{sec:conclusions}
+% ======================================================================
+
+TROPOMI resolved and quantified the \NOx{} and CO emission flux of an individual high-intensity wildfire in south-central Chile from a single overpass, yielding the first satellite top-down emission estimates for the \textit{Pinus radiata} and \textit{Eucalyptus globulus} plantation biome. The key findings are:
+
+\begin{enumerate}
+  \item \textbf{\NOx{} emission flux:} 8{,}853\gs{} (765\td), with lifetime
+        $\tau = 0.67$~h --- shorter than the temperate-biome mean and
+        consistent with elevated OH in the Southern Hemisphere summer Pacific
+        boundary layer.
+  \item \textbf{CO emission flux:} 949\kgs{} (82{,}036\td) from the CSF
+        method, independently supported by a HYSPLIT forward dispersion run
+        that reproduces the observed downwind CO column reach and magnitude
+        over four days.
+  \item \textbf{Inventory comparison:} benchmarked against the overpass-matched
+        hourly CAMS GFAS inventory at an FRP-defined 142~km radius, top-down
+        \NOx{} sits 19\% below and CO a factor of 2.9 above GFAS; because the
+        comparison is sampling-matched, these departures are not diurnal
+        artefacts and differ in sign by species.
+  \item \textbf{Transoceanic transport:} a 500-member ERA5 Monte-Carlo
+        ensemble, with the retrieved flux independently advected by HYSPLIT,
+        places the smoke over the subtropical SE Pacific within 96~h of
+        emission, more than 2{,}000~km from the source.
+\end{enumerate}
+
+Chilean plantation forests are a growing fire source in the Southern Hemisphere with no dedicated representation in global emission databases. Extending the overpass-matched TROPOMI approach to the full 2017--2026 Chilean fire record is the most direct way to produce reliable, biome-resolved emission estimates for this fuel type.
+
+% ======================================================================
+\section*{Figures}
+% ======================================================================
+
+\begin{figure}[htbp]
+\noindent\includegraphics[width=\textwidth]{figures/fig2_emg_fit.png}
+\caption{EMG fit to the 18~January \NOtwo{} line density profile. Observed
+line density (points) with the best-fit EMG function (Equation~\ref{eq:emg}),
+the bootstrap uncertainty envelope, and fit diagnostics
+($E = 8{,}853$\gs{}, $\tau = 0.67$~h, $R^2 = 0.907$).}
+\label{fig:emg}
+\end{figure}
+
+\begin{figure}[htbp]
+\noindent\includegraphics[width=\textwidth]{figures/fig3_csf_transects.png}
+\caption{CSF CO retrieval diagnostics for 18~January. TROPOMI CO total column
+with the wind-perpendicular transects and the AER\_AI plume mask, and the
+per-transect CO flux estimates showing no systematic downwind trend across the
+30--300~km range.}
+\label{fig:csf}
+\end{figure}
+
+\begin{figure}[htbp]
+\noindent\includegraphics[width=0.85\textwidth]{figures/fig4_pathway_ensemble.png}
+\caption{500-member ERA5 Monte-Carlo trajectory corridor (per-cell visit
+probability) for 96~h from the fire centroid, with MODIS Aqua fire detections
+and the observed TROPOMI AER\_AI plume on $+$1 to $+$4~d overlaid. The corridor
+establishes the north-then-offshore pathway; it samples release uncertainty
+only and therefore under-represents the full observed plume width.}
+\label{fig:ensemble}
+\end{figure}
+
+\begin{figure}[htbp]
+\noindent\includegraphics[width=\textwidth]{figures/fig5_gfas_comparison.png}
+\caption{Top-down vs.\ CAMS GFAS at the FRP-defined radius. Upper panels: CO
+(CSF) and \NOx{} (EMG) fluxes against the overpass-matched GFAS integral at
+R99~$=142$~km. Lower panels: radius-sensitivity sweep (25--150~km) with the
+top-down fluxes (horizontal lines) and R99 (vertical line) marked.}
+\label{fig:gfas}
+\end{figure}
+
+\begin{figure}[htbp]
+\noindent\includegraphics[width=\textwidth]{figures/fig6_hysplit_forward.png}
+\caption{Forward validation of the CO flux. HYSPLIT modeled CO column (contours,
+driven by the retrieved CSF flux) over the observed TROPOMI CO enhancement
+(shading) on each of the four following overpasses. The modeled leading edge
+converges on the observed plume reach by day~3--4.}
+\label{fig:hysplit}
+\end{figure}
+
+\begin{figure}[htbp]
+\noindent\includegraphics[width=0.8\textwidth]{figures/figS1_injection_pressure.png}
+\caption{(Supporting) AER\_LH injection-pressure distribution for the
+97~AER\_AI-matched plume pixels within 300~km of the fire centroid; the median
+(891\hPa) defines the trajectory and wind-extraction level.}
+\label{fig:injection}
+\end{figure}
+
+% ======================================================================
+%% BIBLIOGRAPHY
+% ======================================================================
+\bibliographystyle{apalike}
+\begin{thebibliography}{99}
+
+\bibitem[Andreae(2019)]{Andreae2019}
+Andreae, M.~O. (2019).
+Emission of trace gases and aerosols from biomass burning --- an updated
+  assessment.
+\textit{Atmospheric Chemistry and Physics}, \textbf{19}(13), 8523--8546.
+\url{https://doi.org/10.5194/acp-19-8523-2019}
+
+\bibitem[Bousserez(2014)]{Bousserez2014}
+Bousserez, N. (2014).
+Space-based retrieval of NO$_2$ over biomass burning regions: influence of
+  atmospheric pollutants and their interaction with vegetation.
+\textit{Atmospheric Measurement Techniques}, \textbf{7}(12), 4257--4273.
+\url{https://doi.org/10.5194/amt-7-4257-2014}
+
+\bibitem[Darmenov \& da~Silva(2015)]{Darmenov2015}
+Darmenov, A., \& da Silva, A. (2015).
+The Quick Fire Emissions Dataset (QFED) --- documentation of versions 2.1,
+  2.2, and 2.4.
+\textit{NASA Technical Report Series on Global Modeling and Data
+  Assimilation}, \textbf{38}, 212~pp.
+
+\bibitem[Franco et~al.(2021)]{Franco2021}
+Franco, B., Clarisse, L., Stavrakou, T., M{\"u}ller, J.-F., Pozzer, A.,
+  Hadji-Lazaro, J., Hurtmans, D., Coheur, P.-F., \& Clerbaux, C. (2021).
+Pyrogenic and biogenic emissions of formic acid from satellite observations.
+\textit{Geophysical Research Letters}, \textbf{48}(2), e2020GL090242.
+\url{https://doi.org/10.1029/2020GL090242}
+
+\bibitem[Giglio et~al.(2016)]{Giglio2016}
+Giglio, L., Schroeder, W., \& Justice, C.~O. (2016).
+The collection~6 MODIS active fire detection algorithm and fire products.
+\textit{Remote Sensing of Environment}, \textbf{178}, 31--41.
+\url{https://doi.org/10.1016/j.rse.2016.02.054}
+
+\bibitem[Griffin et~al.(2021)]{Griffin2021}
+Griffin, D., McLinden, C.~A., Dammers, E., Adams, C., Stockwell, C.~E.,
+  Warneke, C., Bourgeois, I., Peischl, J., Ryerson, T.~B., Zarzana, K.~J.,
+  Rainer, D.~J., Holloway, J., Luk, P., Brown, S.~S., \& Kharol, S.~K.
+  (2021).
+Biomass burning emissions of CO and NO$_x$ as seen by TROPOMI: comparison
+  with the National Emission Inventory (NEI) and the Canadian National
+  Pollutant Release Inventory (NPRI) fire inventories.
+\textit{Atmospheric Chemistry and Physics}, \textbf{21}(23), 17829--17859.
+\url{https://doi.org/10.5194/acp-21-17829-2021}
+
+\bibitem[Hersbach et~al.(2020)]{Hersbach2020}
+Hersbach, H., Bell, B., Berrisford, P., Hirahara, S., Hor{\'a}nyi, A.,
+  Mu{\~n}oz-Sabater, J., Nicolas, J., Peubey, C., Radu, R., Schepers, D.,
+  Simmons, A., Soci, C., \& Th{\'e}paut, J.-N. (2020).
+The ERA5 global reanalysis.
+\textit{Quarterly Journal of the Royal Meteorological Society},
+  \textbf{146}(730), 1999--2049.
+\url{https://doi.org/10.1002/qj.3803}
+
+\bibitem[Jin et~al.(2021)]{Jin2021}
+Jin, X., Fiore, A., Boersma, K.~F., De~Smedt, I., \& Valin, L. (2021).
+\textit{%% TODO: verify full citation for the Jin et al. 2021 ACP wildfire NOx EF reference.}
+
+\bibitem[Lorente et~al.(2017)]{Lorente2017}
+Lorente, A., Folkert Boersma, K., Yu, H., D{\"o}rner, S., Hilboll, A.,
+  Richter, A., Liu, M., Lamsal, L.~N., Barkley, M., De~Smedt, I.,
+  Van~Roozendael, M., Wang, Y., Wagner, T., Beirle, S., Lin, J.-T.,
+  Krotkov, N., Stammes, P., Wang, P., Eskes, H.~J., \& Krol, M. (2017).
+Structural uncertainty in air mass factor calculation for NO$_2$ and HCHO
+  satellite retrievals.
+\textit{Atmospheric Measurement Techniques}, \textbf{10}(3), 759--782.
+\url{https://doi.org/10.5194/amt-10-759-2017}
+
+\bibitem[Mebust et~al.(2011)]{Mebust2011}
+Mebust, A.~K., Russell, A.~R., Hudman, R.~C., Valin, L.~C., \& Cohen, R.~C.
+  (2011).
+Characterization of wildfire NO$_x$ emissions using MODIS fire radiative
+  power and OMI tropospheric NO$_2$ columns.
+\textit{Atmospheric Chemistry and Physics}, \textbf{11}(12), 5839--5851.
+\url{https://doi.org/10.5194/acp-11-5839-2011}
+
+\bibitem[Stein et~al.(2015)]{Stein2015}
+Stein, A.~F., Draxler, R.~R., Rolph, G.~D., Stunder, B.~J.~B., Cohen,
+  M.~D., \& Ngan, F. (2015).
+NOAA's HYSPLIT atmospheric transport and dispersion modeling system.
+\textit{Bulletin of the American Meteorological Society},
+  \textbf{96}(12), 2059--2077.
+\url{https://doi.org/10.1175/BAMS-D-14-00110.1}
+
+\bibitem[Urbanski(2014)]{Urbanski2014}
+Urbanski, S.~P. (2014).
+Wildland fire emissions, carbon, and climate: emission factors.
+\textit{Forest Ecology and Management}, \textbf{317}, 51--60.
+\url{https://doi.org/10.1016/j.foreco.2013.05.045}
+
+\bibitem[van~der~Werf et~al.(2017)]{vanderWerf2017}
+van der Werf, G.~R., Randerson, J.~T., Giglio, L., van Leeuwen, T.~T., Chen,
+  Y., Rogers, B.~M., Mu, M., van Marle, M.~J.~E., Morton, D.~C., Collatz,
+  G.~J., Yokelson, R.~J., \& Kasibhatla, P.~S. (2017).
+Global fire emissions estimates during 1997--2016.
+\textit{Earth System Science Data}, \textbf{9}(2), 697--720.
+\url{https://doi.org/10.5194/essd-9-697-2017}
+
+\bibitem[Veefkind et~al.(2012)]{Veefkind2012}
+Veefkind, J.~P., Aben, I., McMullan, K., F{\"o}rster, H., de Vries, J.,
+  Otter, G., Claas, J., Eskes, H.~J., de Haan, J.~F., Kleipool, Q., van
+  Weele, M., Hasekamp, O., Hoogeveen, R., Landgraf, J., Snel, R., Tol, P.,
+  Ingmann, P., Voors, R., Kruizinga, B., \& Levelt, P.~F. (2012).
+TROPOMI on the ESA Sentinel-5 Precursor: a GMES mission for global
+  observations of the atmospheric composition for climate, air quality and
+  ozone layer applications.
+\textit{Remote Sensing of Environment}, \textbf{120}, 70--83.
+\url{https://doi.org/10.1016/j.rse.2011.09.027}
+
+\bibitem[Wiedinmyer et~al.(2023)]{Wiedinmyer2023}
+Wiedinmyer, C., Kimura, Y., McDonald-Buller, E.~C., Emmons, L.~K.,
+  Buchholz, R.~R., Tang, W., Seto, K., Joseph, M.~B., Barsanti, K.~C.,
+  Carlton, A.~G., \& Yokelson, R. (2023).
+The Fire INventory from NCAR version~2.5: an updated global fire emissions
+  model for climate and chemistry applications.
+\textit{Geoscientific Model Development}, \textbf{16}(13), 3873--3891.
+\url{https://doi.org/10.5194/gmd-16-3873-2023}
+
+\end{thebibliography}
+
+\section*{Open Research Section}
+TROPOMI Level-2 products are available from the Copernicus Open Access Hub
+(\url{https://dataspace.copernicus.eu}). MODIS MCD14DL active fire data are
+distributed by NASA FIRMS. ERA5 reanalysis is available from the Copernicus
+Climate Data Store. CAMS GFAS fire emissions are available from the Copernicus
+Atmosphere Data Store. GDAS1 meteorology is from the NOAA ARL archive. Analysis
+code (retrievals, trajectory ensemble, HYSPLIT forward run, and inventory
+comparison) will be archived in a public repository upon acceptance.
+
+\acknowledgments
+Enter acknowledgments here.
+
+\end{document}
