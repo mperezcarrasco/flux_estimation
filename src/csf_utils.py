@@ -175,6 +175,69 @@ def estimate_background(
     return background_value, bg_mask
 
 
+def _sample_co_along_transects(
+    co_delta: np.ndarray,
+    lat: np.ndarray,
+    lon: np.ndarray,
+    transects: list,
+) -> list[np.ndarray]:
+    """Sample ΔCO at each transect's points via nearest-neighbour lookup.
+
+    method="nearest" is used instead of "linear" for two reasons:
+      1. Bilinear interpolation propagates NaN: if any of the 4 surrounding
+         pixels is NaN (cloud gap), the interpolated result is NaN even when
+         the nearest pixel has a valid observation. Nearest-neighbour avoids
+         this and returns NaN only when the nearest pixel itself is missing.
+      2. The transect sample spacing (≈ ds_meters) is already close to the
+         grid resolution, so bilinear vs nearest makes a negligible
+         difference to the integrated flux.
+
+    Parameters
+    ----------
+    co_delta  : (nlat, nlon) ΔCO field in mol m⁻² (NaN unobserved); lat/lon
+        must be strictly ascending (RegularGridInterpolator requirement).
+    lat, lon  : grid coordinate arrays matching co_delta.
+    transects : list of `Transect` (from `build_dynamic_transects`).
+
+    Returns
+    -------
+    list of (n_points,) arrays, one per transect, in transect order.
+    """
+    co_rgi = RegularGridInterpolator(
+        (lat, lon), co_delta,
+        method="nearest", bounds_error=False, fill_value=np.nan,
+    )
+    return [
+        co_rgi(np.column_stack([t.positions_lat, t.positions_lon]))
+        for t in transects
+    ]
+
+
+def count_valid_transect_pixels(
+    co_delta: np.ndarray,
+    lat: np.ndarray,
+    lon: np.ndarray,
+    transects: list,
+) -> np.ndarray:
+    """Count finite ΔCO sample points per transect.
+
+    Diagnostic for `compute_csf_dynamic`'s `min_valid_fraction` gate: compare
+    against the number of samples per transect (51 at 4 km spacing, 100 km
+    half-width).
+
+    Parameters
+    ----------
+    co_delta, lat, lon : see `_sample_co_along_transects`.
+    transects           : list of `Transect` (from `build_dynamic_transects`).
+
+    Returns
+    -------
+    (n_transects,) int array — valid sample count per transect.
+    """
+    co_sampled_per_transect = _sample_co_along_transects(co_delta, lat, lon, transects)
+    return np.array([int(np.isfinite(s).sum()) for s in co_sampled_per_transect])
+
+
 def compute_csf_dynamic(
     co_delta: np.ndarray,
     lat: np.ndarray,
@@ -186,6 +249,9 @@ def compute_csf_dynamic(
     transect_half_width_km: float = 50.0,
     wind_angle_perturbation_deg: float = 0.0,
     aggregation: str = "mean",
+    *,
+    sample_spacing_m: float,
+    min_valid_fraction: float,
 ) -> tuple[np.ndarray, np.ndarray, float, float]:
     """CSF emission rate with spatially variable (per-slab) wind direction.
 
@@ -199,8 +265,8 @@ def compute_csf_dynamic(
     1. compute_local_wind_direction: divide plume into slabs, get θ_k per slab.
     2. Perturb each θ_k by wind_angle_perturbation_deg (for ensemble members).
     3. build_dynamic_transects: construct transect geometries.
-    4. For each transect, sample ΔCO along the transect using bilinear
-       interpolation (RegularGridInterpolator) and integrate:
+    4. For each transect, sample ΔCO every `sample_spacing_m` along the
+       transect (nearest grid cell) and integrate:
          F_k = Σ_j ΔCO(s_j) × U⊥_k × Δs
        where U⊥_k = u_slab_k cos θ_k + v_slab_k sin θ_k is the slab-mean
        perpendicular wind component.
@@ -219,11 +285,21 @@ def compute_csf_dynamic(
     wind_angle_perturbation_deg : perturbation applied to all slab wind angles
                                  before building transects (degrees; + = CCW).
                                  Use for ensemble uncertainty quantification.
+    sample_spacing_m          : spacing of the sample points along each transect
+                                 (m), keyword-only and required. Set it to the
+                                 grid cell size (4000 m on the 4 km grid) so
+                                 every cell crossed is sampled once.
+    min_valid_fraction        : keyword-only and required. A transect is accepted
+                                 only if MORE THAN this fraction of its samples
+                                 have a finite ΔCO (0.5 -> > 50%, i.e. ≥ 26 of 51
+                                 samples at 4 km / 100 km half-width); otherwise
+                                 its flux is NaN, same as a transect with no data.
 
     Returns
     -------
     slab_centers_m   : (n_transects,) slab centre positions along downwind axis (m)
-    transect_fluxes  : (n_transects,) per-transect flux (mol s⁻¹; NaN if no data)
+    transect_fluxes  : (n_transects,) per-transect flux (mol s⁻¹; NaN if no data
+                       or rejected by min_valid_fraction)
     flux_kgs         : float — aggregated (mean by default) valid-transect flux in kg s⁻¹
     flux_Ggyr        : float — aggregated valid-transect flux in Gg yr⁻¹
     aggregation      : 'mean' (default) or 'median' — how to collapse valid transect
@@ -240,6 +316,9 @@ def compute_csf_dynamic(
     assert np.all(np.diff(lon) > 0), (
         "lon must be strictly ascending; got non-monotonic array"
     )
+    assert 0.0 <= min_valid_fraction < 1.0, (
+        f"min_valid_fraction must be in [0, 1); got {min_valid_fraction}."
+    )
 
     # Step 1: Per-slab wind directions
     slab_centers_m, wind_angles, u_slab, v_slab = compute_local_wind_direction(
@@ -253,44 +332,36 @@ def compute_csf_dynamic(
     transects = build_dynamic_transects(
         lat, lon, plume_mask, wind_angles_perturbed, u_slab, v_slab,
         n_transects, transect_half_width_km,
+        sample_spacing_m=sample_spacing_m,
     )
 
-    # Step 4: Build nearest-neighbour interpolator for ΔCO on the TROPOMI grid.
-    # RegularGridInterpolator requires strictly ascending coordinates.
-    # lat and lon from .pt files are confirmed ascending (assertion above).
-    #
-    # method="nearest" is used instead of "linear" for two reasons:
-    #   1. Bilinear interpolation propagates NaN: if any of the 4 surrounding
-    #      pixels is NaN (cloud gap), the interpolated result is NaN even when
-    #      the nearest pixel has a valid observation.  Nearest-neighbour avoids
-    #      this and returns NaN only when the nearest pixel itself is missing.
-    #   2. The transect sample spacing (≈ ds_meters ≈ one TROPOMI pixel) is
-    #      already at the native grid resolution, so bilinear vs nearest makes
-    #      a negligible difference to the integrated flux.
-    co_rgi = RegularGridInterpolator(
-        (lat, lon), co_delta,
-        method="nearest", bounds_error=False, fill_value=np.nan,
-    )
-
-    # Step 5: Integrate along each transect
+    # Step 4-5: Sample ΔCO along each transect, then integrate.
+    co_sampled_per_transect = _sample_co_along_transects(co_delta, lat, lon, transects)
     transect_fluxes = np.full(n_transects, np.nan)
 
     for k, t in enumerate(transects):
-        query_pts  = np.column_stack([t.positions_lat, t.positions_lon])
-        co_sampled = co_rgi(query_pts)   # (n_points,) mol m⁻²
+        co_sampled = co_sampled_per_transect[k]   # (n_points,) mol m⁻²
 
-        # Integrate over all sample points with a finite ΔCO observation.
-        # The plume-mask filter used in compute_csf (fixed frame) is NOT
-        # applied here.  In the fixed frame the integration runs across the
-        # entire 60° domain width, so the AI mask is needed to suppress
-        # background noise.  Here each transect is only ~100 km wide and
-        # centred on the plume centroid; outside the plume co_delta ≈ 0,
-        # contributing approximately zero to the sum.  Requiring the sample
-        # point to land on a sparse AI > 2.0 pixel (0.26% of domain) with a
-        # coarse 28 km sample spacing would cause most transects to return NaN.
-        # Do NOT filter by co_sampled > 0 either — see compute_csf docstring.
+        # Integrate over sample points with a finite ΔCO observation, but
+        # require more than `min_valid_fraction` of the samples to be finite. The plume-mask filter
+        # used in compute_csf (fixed frame) is NOT applied here. In the fixed
+        # frame the integration runs across the entire 60° domain width, so
+        # the AI mask is needed to suppress background noise. Here each
+        # transect is only ~100 km wide and centred on the plume centroid;
+        # outside the plume co_delta ≈ 0, contributing approximately zero to
+        # the sum. Requiring the sample point to land on a sparse AI > 2.0
+        # pixel would cause most transects to return NaN. Do NOT filter by co_sampled > 0
+        # either — see compute_csf docstring.
+        #
+        # `min_valid_fraction` guards a distinct failure mode: a transect with
+        # few finite ΔCO samples (e.g. 6 of 51) sits mostly in a pixel-coverage
+        # gap and its flux is not
+        # representative of the true cross-section, even though it is
+        # numerically finite. Below-threshold transects are rejected (NaN),
+        # same as transects with zero valid samples.
         valid = np.isfinite(co_sampled)
-        if not valid.any():
+        n_valid = int(valid.sum())
+        if not n_valid > min_valid_fraction * valid.size:
             continue
 
         # F_k = Σ_j ΔCO(s_j) × U⊥_k × Δs   [mol s⁻¹]
@@ -437,13 +508,15 @@ def build_dynamic_transects(
     v_slab: np.ndarray,
     n_transects: int,
     transect_half_width_km: float = 50.0,
+    *,
+    sample_spacing_m: float,
 ) -> list[Transect]:
     """Build transect geometries perpendicular to the local wind direction for each slab.
 
     For each slab k the transect runs perpendicular to local_wind_angles[k],
     centred on the slab centre position along the reference downwind axis.
-    Sample points are spaced at ~0.25° projected at the domain centre latitude
-    (≈27.8 km at −37°).
+    Sample points are spaced `sample_spacing_m` apart (rounded so that both
+    transect ends are sampled; the actual spacing is stored in `ds_meters`).
 
     Parameters
     ----------
@@ -455,6 +528,7 @@ def build_dynamic_transects(
     v_slab               : (n_transects,) slab-mean northward wind (m s⁻¹)
     n_transects          : number of transects (must match len(local_wind_angles))
     transect_half_width_km : half-length of each transect on either side of centre (km)
+    sample_spacing_m     : keyword-only, required — target spacing of sample points (m)
 
     Returns
     -------
@@ -479,6 +553,8 @@ def build_dynamic_transects(
             f"local_wind_angles has {len(local_wind_angles)} entries but "
             f"n_transects = {n_transects}.  They must match."
         )
+    if sample_spacing_m <= 0.0:
+        raise ValueError(f"sample_spacing_m must be positive; got {sample_spacing_m}.")
     if transect_half_width_km <= 0.0:
         raise ValueError(
             f"transect_half_width_km must be positive; got {transect_half_width_km}."
@@ -517,12 +593,11 @@ def build_dynamic_transects(
     slab_edges     = np.linspace(x_min, x_max, n_transects + 1)
     slab_centers_m = 0.5 * (slab_edges[:-1] + slab_edges[1:])
 
-    # Transect sample spacing: one TROPOMI pixel at domain centre latitude
-    ds_meters   = 0.25 * np.cos(np.radians(lat_centre)) * _M_PER_DEG_LAT
+    # Transect sample spacing: explicit (the grid cell size; 4 km on the 4 km grid)
     half_width_m = transect_half_width_km * 1e3
-    n_points    = max(int(2 * half_width_m / ds_meters) + 1, 3)
+    n_points    = max(int(2 * half_width_m / sample_spacing_m) + 1, 3)
     s_values    = np.linspace(-half_width_m, half_width_m, n_points)
-    # Actual spacing may differ slightly from ds_meters due to integer rounding
+    # Actual spacing may differ slightly from sample_spacing_m due to integer rounding
     ds_actual = float(abs(s_values[1] - s_values[0]))
 
     transects: list[Transect] = []

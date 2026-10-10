@@ -1,14 +1,28 @@
 # CO Cross-Sectional Flux configuration (`main.py co`)
 # ----------------------------------------------------
-# Reference: notebooks/co_estimation_csf.ipynb — AER_LH-pressure-level
-# wind variant only. Override individual values with CLI flags.
+# Reproduces the canonical CO retrieval in
+# notebooks/02_co_emission_csf.ipynb — the "Change D background + AER_LH
+# pressure-level wind" variant, which is the manuscript headline CO number
+# (point estimate on the 4 km oversampled grid; value recorded in CLAUDE.md
+# and in outputs/retrievals/0118/co_retrieval.csv written by nb02).
+#
+# Every value below is set to the notebook's, so `main.py co --date 2026-01-18
+# --fire-lat -37.5484 --fire-lon -72.5545` reproduces that point estimate.
+# Override individual values with CLI flags.
 
 # --- TROPOMI quality-filter -----------------------------------------------
 tropomi:
   qa_threshold: 0.5
-  ai_threshold: 2.0          # AER_AI plume mask threshold
+  # ai_threshold is no longer read from here: the effective AER_AI threshold
+  # (and the blob-clustered spatial inclusion geometry that replaces the old
+  # clip_north_idx hack) comes from data/{MMDD}/plume_boundary.geojson, saved
+  # by notebooks/plume_boundary_inspection.ipynb. The CLI fails loudly if that
+  # file doesn't exist for the requested date — there is no automatic
+  # fallback threshold.
 
 # --- Spatial domain (cropping when reading L2 swaths) --------------------
+# Matches nb02's wide domain (needed so the AER_LH match and the far-upwind
+# background window both see the full plume/background extent).
 domain:
   lat_min: -66.83
   lat_max:  -6.83
@@ -16,21 +30,23 @@ domain:
   lon_max:  -43.05
 
 # --- Aerosol injection-pressure selection (AER_LH plume match) -----------
+# nb02 matches AER_LH within 450 km of the fire and takes the MEAN of the
+# matched mid-pressures -> 882 hPa (n=99) for 18 Jan (same radius as the NOx
+# retrieval). Was 300 km here, which no longer matched nb02 (875 hPa).
 injection:
-  radius_km: 300.0
+  radius_km: 450.0
   min_pixels: 20            # CSF requires denser AER_LH coverage than EMG
-  aggregation: median
+  aggregation: mean         # nb02 uses the plume-mean matched pressure
   fallback_hpa: 800.0
 
-# --- Gridding -------------------------------------------------------------
+# --- Gridding (Griffin et al. 2024 Sect. 2.2; Adams et al. 2019 Sect. 3.1) --
+# Regular lat/lon grid with cell_km x cell_km cells at the fire latitude.
+# Two-step oversampling: every grid point inside a pixel footprint takes the
+# pixel value; each cell averages those values within oversample_radius_km,
+# weight = 1 / pixel area (src/oversampling.py).
 grid:
-  spacing_deg: 0.25         # CO regridding cell size (matches notebook)
-
-# --- Plume mask post-processing ------------------------------------------
-plume_mask:
-  # Optional: clip rows above this latitude index to remove northern
-  # retrieval artefacts. Set to null to disable clipping.
-  clip_north_idx: 160
+  cell_km: 4.0
+  oversample_radius_km: 7.0
 
 # --- Background subtraction (Change D — far-upwind median) ---------------
 background:
@@ -38,12 +54,24 @@ background:
   bg_x_min_km: -300.0
   bg_x_max_km: -200.0
   min_pixels: 10            # min upwind pixels before falling back to 1st percentile
+  # Which wind orients the downwind axis for the background window. nb02 uses
+  # the ERA5 10 m plume-mean wind (surface flow) here, NOT the AER_LH
+  # pressure-level wind that drives the transects — the two differ by ~40 deg
+  # on 18 Jan and the choice changes which upwind pixels fall in the window.
+  # 'era5_10m_plume_mean' reproduces the manuscript CO number; requires
+  # data/ERA5_winds.nc. 'injection_pressure' reuses the transect (AER_LH) wind.
+  wind_source: era5_10m_plume_mean
 
 # --- Cross-Sectional Flux integration ------------------------------------
 csf:
   n_transects: 10
   transect_half_width_km: 100.0   # half-length perpendicular to local wind
   aggregation: mean               # how to collapse per-transect fluxes ('mean' | 'median')
+  sample_spacing_km: 4.0          # sample spacing along each transect (= grid cell)
+  # A transect is accepted only if MORE THAN this fraction of its samples
+  # have a finite ΔCO (51 samples at 4 km / 100 km half-width -> >= 26);
+  # rejects transects sitting mostly in a pixel-coverage gap.
+  min_valid_fraction: 0.5
 
 # --- Physical constants ---------------------------------------------------
 physics:

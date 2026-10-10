@@ -152,8 +152,17 @@ def fit_emg_bootstrap(
     curve_fit_maxfev: int,
     cv_stability_threshold: float,
     peak_offset_km_max: float,
+    x0_min_km: float,
 ) -> dict:
     """Run bootstrap EMG fit and return summary metrics.
+
+    Parameters
+    ----------
+    x0_min_km : float
+        Lower bound on the EMG decay length (km) passed to ``curve_fit``.
+        Must be set to at least ``grid_dy_km`` so that the optimizer cannot
+        fit a decay shorter than one grid cell (which is physically
+        unresolvable and produces degenerate E∝1/x0 artifacts).
 
     Returns a dict with keys:
         n_converged, n_attempted,
@@ -163,6 +172,9 @@ def fit_emg_bootstrap(
         peak_x_km, peak_within_30km,
         x_fit, y_fit, y_pred, success_params (Nx5)
     """
+    if x0_min_km <= 0:
+        raise ValueError(f"x0_min_km must be positive, got {x0_min_km}")
+
     finite = np.isfinite(profile)
     x_fit = x_centres[finite]
     y_fit = profile[finite]
@@ -178,7 +190,7 @@ def fit_emg_bootstrap(
     x_peak_obs = float(x_fit[np.argmax(y_fit)])
 
     p0 = [y_max * 50.0, 50.0, x_peak_obs * 0.5, 30.0, float(y_min)]
-    bounds_lo = [0.0, 1.0, -200.0, 1.0, -1e6]
+    bounds_lo = [0.0, x0_min_km, -200.0, 1.0, -1e6]
     bounds_hi = [np.inf, 500.0, 200.0, 200.0, float(max(y_max, 1.0))]
 
     rng = np.random.default_rng(bootstrap_seed)

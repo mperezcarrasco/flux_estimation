@@ -1,15 +1,24 @@
 # NOx EMG flux configuration (`main.py nox`)
 # ------------------------------------------
-# Reference: notebooks/nox_estimation_emg.ipynb (Jin et al. 2021).
+# Reproduces the canonical NOx retrieval in
+# notebooks/03_nox_emission_emg.ipynb (Jin et al. 2021 method), the manuscript
+# NOx point estimate (E = 8,642.4 g/s, tau = 0.74 h, R^2 = 0.851 on
+# 18 Jan 2026). Every value below matches the notebook, so `main.py nox
+# --date 2026-01-18 --fire-lat -37.5484 --fire-lon -72.5545` reproduces it.
 # Override individual values with CLI flags.
 
 # --- TROPOMI quality-filter -----------------------------------------------
 tropomi:
   qa_threshold: 0.5         # qa_value lower bound (Jin et al. retain smoke pixels)
-  ai_threshold: 2.0         # AER_AI plume mask threshold
+  # ai_threshold is no longer read from here: the effective AER_AI threshold
+  # (and the blob-clustered spatial inclusion geometry that replaces the old
+  # "lon > -72" clip hack) comes from data/{MMDD}/plume_boundary.geojson,
+  # saved by notebooks/plume_boundary_inspection.ipynb. The CLI fails loudly
+  # if that file doesn't exist for the requested date.
   no2_max_mol_m2: 1.0       # discard physically implausible NO2 columns
 
 # --- Spatial domain (cropping when reading L2 swaths) --------------------
+# Matches nb03's domain.
 domain:
   lat_min: -46.83
   lat_max: -26.83
@@ -17,17 +26,21 @@ domain:
   lon_max: -43.05
 
 # --- Aerosol injection-pressure selection (AER_LH plume match) -----------
+# nb03 matches AER_LH within 450 km of the fire and takes the MEAN of the
+# matched mid-pressures -> 883 hPa (n=99) for 18 Jan, giving U = 8.73 m/s.
 injection:
-  radius_km: 300.0          # radius around fire centroid for AER_LH match
-  min_pixels: 0             # min matched AER_LH pixels (0 = always trust median)
-  aggregation: median       # 'median' or 'max'
+  radius_km: 450.0          # radius around fire centroid for AER_LH match (nb03)
+  min_pixels: 0             # min matched AER_LH pixels (0 = always trust the mean)
+  aggregation: mean         # nb03 uses the plume-mean matched pressure
   fallback_hpa: 900.0       # used only when AER_LH match fails (with warning)
 
 # --- Wind-frame scene extraction and gridding -----------------------------
+# Expanded from Jin et al.'s ~200/300 km to capture the ~1000 km Chilean plume
+# (nb03: extraction 450 km, downwind [-100, 450] km, cross-wind +/-100 km).
 scene:
-  extraction_radius_km: 300.0     # max distance of NO2 pixels from fire centroid
+  extraction_radius_km: 450.0     # max distance of NO2 pixels from fire centroid
   downwind_min_km: -100.0         # rotated x grid edge (upwind)
-  downwind_max_km:  300.0         # rotated x grid edge (downwind)
+  downwind_max_km:  450.0         # rotated x grid edge (downwind)
   crosswind_max_km: 100.0         # rotated y grid edge (cross-wind half-width)
   grid_dy_km: 5.5                 # isotropic grid spacing (≈ 0.05° at 37°S)
   earth_radius_km: 6371.0

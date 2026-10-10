@@ -1,0 +1,44 @@
+# HYSPLIT forward run vs observed TROPOMI CO — comparison settings
+# ----------------------------------------------------------------
+# Single source of truth for the model-vs-observation comparison, read by
+# notebooks/06_hysplit_forward_validation.ipynb (table model_obs_comparison.csv,
+# fig model_obs_overlay), notebooks/co_transport_temporal_coherence.ipynb
+# (fig_transport_combined, fig_transport_spatial) and
+# tests/test_transport_compare.py. Implementation: src/transport_compare.py.
+#
+# The HYSPLIT *run* settings (source term, release height, met files, particles)
+# stay in nb06; the source location and column conversion below must equal the
+# ones nb06 used for the run (nb06 asserts this).
+
+source:
+  fire_lat: -37.5484                # deg N; dominant-cluster centroid (nb01)
+  fire_lon: -72.5545                # deg E
+
+column:
+  level_top_m: 6000.0               # cdump layer 0..level_top_m integrated to a column
+  co_molar_mass_kg_per_mol: 0.02801
+
+# Regular analysis grid for observed CO and the regridded model column.
+# Edges are np.arange(min, max + res, res) (same as nb06 and the transport map).
+analysis_grid:
+  lat_min: -45.0
+  lat_max: -17.0
+  lon_min: -90.0
+  lon_max: -66.0
+  res_deg: 0.25
+
+observations:
+  qa_threshold: 0.5                 # TROPOMI qa_value (loader uses uint8 0-100)
+  bg_percentile: 10.0               # off-plume background = this percentile of the day's CO grid
+
+footprint:
+  column_threshold_mol_m2: 1.0e-3   # T, applied identically to model and observed enhancement
+                                    # (= 6.02e16 molec cm-2; manuscript quotes 6.0e16)
+  near_source_km: 50.0              # cells closer than this to the source are excluded
+
+# Downwind TROPOMI overpasses (data/{folder}/, overpass time UTC)
+overpasses:
+  - {folder: "0119", offset_d: 1, time_utc: "2026-01-19T18:57"}
+  - {folder: "0120", offset_d: 2, time_utc: "2026-01-20T18:39"}
+  - {folder: "0121", offset_d: 3, time_utc: "2026-01-21T18:20"}
+  - {folder: "0122", offset_d: 4, time_utc: "2026-01-22T18:01"}

@@ -79,6 +79,10 @@ A second optional surface-wind file (`ERA5_winds.nc`) is referenced by the
 original notebooks but **not** used by `main.py co` since this library uses
 only the AER\_LH pressure-level wind variant.
 
+All four OFFL files may be single overpasses or **multiple** overpasses for
+the same date — the CLI concatenates every matched file automatically (no
+special handling needed on your part).
+
 ### 2.3 MODIS active-fire detections (FIRMS MCD14DL)
 
 Source: [NASA FIRMS Archive Download](https://firms.modaps.eosdis.nasa.gov/download/).
@@ -90,6 +94,18 @@ the standard MCD14DL columns. Place it in `data/`:
 ```
 data/fire_nrt_M-C61_<request_id>.csv
 ```
+
+### 2.4 Plume boundary (required before `nox`/`co`)
+
+Both `nox` and `co` need a hand-reviewed plume boundary at
+`data/{MMDD}/plume_boundary.geojson` and **fail loudly** if it's missing —
+there is no automatic threshold fallback, because a single fixed AER_AI
+threshold does not reliably isolate the true plume from unrelated aerosol
+on every date. Generate it once per date with
+`notebooks/plume_boundary_inspection.ipynb` (not yet exposed as a CLI
+subcommand): it clusters AI-above-threshold pixels into spatial blobs via
+DBSCAN, you pick which blobs are the real plume, and it saves the kept
+blobs' hull as the boundary polygon.
 
 ---
 
@@ -194,7 +210,7 @@ Defaults live in `config/`:
 |---|---|
 | `default_cluster.yaml` | MODIS pixel filtering, linkage method, dominant-cluster anchor |
 | `default_emg.yaml` | TROPOMI QA, AER\_LH injection-pressure aggregation, EMG bootstrap parameters |
-| `default_csf.yaml` | TROPOMI QA, gridding resolution, Change-D background window, CSF transect geometry |
+| `default_csf.yaml` | TROPOMI QA, gridding resolution, Change-D background window, CSF transect geometry, `csf.min_valid_pixels` (transect data-quality floor — see §6) |
 
 Override any default by editing a copy and passing `--config path/to/custom.yaml`:
 
@@ -246,7 +262,19 @@ with `ΔCO = CO − bg_CO`, and `bg_CO` taken as the median far-upwind
 (200–300 km) CO column ("Change D" approach).
 
 CO molar mass = 0.02801 kg mol⁻¹. Output flux is the mean (or median,
-configurable) of valid per-transect fluxes.
+configurable) of valid per-transect fluxes. A transect only counts as
+"valid" if it has at least `csf.min_valid_pixels` finite ΔCO samples —
+transects sitting mostly in a TROPOMI pixel-coverage gap near the fire
+source are rejected outright rather than contributing a spuriously low
+flux.
+
+### Plume identification (both methods)
+
+Both `nox` and `co` restrict to pixels inside a saved plume boundary
+(`data/{MMDD}/plume_boundary.geojson`, §2.4) intersected with an AER_AI
+threshold, rather than the threshold alone — a fixed AI cutoff by itself
+lets through spatially disconnected noise (continental artefacts, unrelated
+aerosol) that a human has to distinguish from the true plume by eye.
 
 ---
 
@@ -265,11 +293,13 @@ wildfires/
 │   ├── wind_helpers.py            # AER_LH → injection-pressure selection
 │   ├── fire_clustering.py         # MODIS clustering + dominant-cluster picker
 │   ├── emg_utils.py               # EMG function + bootstrap fit + gridding
-│   ├── csf_utils.py               # CSF dynamic-transect machinery
+│   ├── csf_utils.py               # CSF dynamic-transect machinery (incl. min_valid_pixels gate)
+│   ├── plume_helpers.py           # Plume boundary: DBSCAN blob clustering, GeoJSON I/O, masking
 │   ├── plotting.py                # All diagnostic plots
 │   └── pipeline.py                # End-to-end orchestrators (NOx and CO)
 ├── data/
 │   ├── {MMDD}/*.nc                # TROPOMI L2 swaths (user-supplied)
+│   ├── {MMDD}/plume_boundary.geojson  # from plume_boundary_inspection.ipynb (§2.4)
 │   ├── ERA5_winds_pressure_levels.nc
 │   └── fire_nrt_M-C61_*.csv
 ├── outputs/                       # Generated at run time
@@ -281,9 +311,12 @@ wildfires/
 
 ## 8. Caveats
 
-* **Single overpass per day.** TROPOMI provides one observation per fire
-  day at ~13:30 local time. Daily-integrated emission rates cannot be
-  derived without an external diurnal-cycle constraint.
+* **Single overpass window per day.** TROPOMI's sun-synchronous orbit gives
+  one equator-crossing time (~13:30 local); a fire date may span 1-2 L2
+  files (adjacent orbits/swaths) all within that same ~90 min window — the
+  CLI concatenates them, but this is still one daily snapshot, not repeated
+  daily sampling. Daily-integrated emission rates cannot be derived without
+  an external diurnal-cycle constraint.
 * **AMF bias over smoke.** The standard TROPOMI NO\_2 product uses a 1°
   TM5 a-priori profile that underestimates NO\_2 in dense fire plumes by
   a factor of ~1.8 (Jin et al. 2021, Table S6). The library reports the
@@ -306,3 +339,8 @@ exact derivation of every numerical choice in the library:
 * `notebooks/temporal_fire_hotspot_detection.ipynb` — MODIS clustering pipeline
 * `notebooks/nox_estimation_emg.ipynb` — EMG NO\_x flux
 * `notebooks/co_estimation_csf.ipynb` — CSF CO flux
+* `notebooks/plume_boundary_inspection.ipynb` — plume boundary authoring (§2.4)
+
+See `CLAUDE.md` for the full pipeline (notebooks 01–09), the Monte-Carlo
+uncertainty estimation, and the canonical numbers this library's outputs
+should reproduce.

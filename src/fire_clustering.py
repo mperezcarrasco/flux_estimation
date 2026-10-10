@@ -26,6 +26,8 @@ import pandas as pd
 from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial.distance import squareform
 
+from .wind_helpers import _haversine_km
+
 # Columns expected from a FIRMS MCD14DL CSV download
 EXPECTED_COLS = [
     "latitude", "longitude", "brightness", "scan", "track",
@@ -311,6 +313,86 @@ def run_clustering(
             UserWarning,
         )
     return out
+
+
+def frp_enclosing_radius(
+    fires_df: pd.DataFrame,
+    center_lat: float,
+    center_lon: float,
+    fraction: float = 0.99,
+    cap_km: float = 150.0,
+    earth_radius_km: float = 6371.0,
+) -> dict:
+    """Smallest radius about a centre enclosing a fraction of cumulative FRP.
+
+    Defines a physically-motivated source/integration radius for an emission
+    inventory comparison: the radius within which ``fraction`` of the fire
+    complex's total fire-radiative-power is emitted. Pixels beyond ``cap_km``
+    are excluded first, to isolate the local complex from unrelated fires in a
+    broad-domain FIRMS product.
+
+    Parameters
+    ----------
+    fires_df : pd.DataFrame
+        Active-fire detections; must contain ``latitude``, ``longitude``,
+        ``frp`` (MW). Caller is responsible for any date/satellite/daytime
+        filtering (e.g. via ``load_modis_csv``).
+    center_lat, center_lon : float
+        Centre the radius is measured from (e.g. the dominant-hotspot centroid).
+    fraction : float
+        Cumulative-FRP fraction to enclose (0 < fraction <= 1). Default 0.99.
+    cap_km : float
+        Pre-filter radius isolating the local complex. Default 150 km.
+    earth_radius_km : float
+
+    Returns
+    -------
+    dict with keys: radius_km, n_pixels, frp_sum_mw, fraction, cap_km,
+        center_lat, center_lon.
+
+    Raises
+    ------
+    ValueError
+        If required columns are missing, ``fraction`` is out of (0, 1], or no
+        pixels fall within ``cap_km``.
+    """
+    required = {"latitude", "longitude", "frp"}
+    missing = required - set(fires_df.columns)
+    if missing:
+        raise ValueError(f"fires_df missing required columns: {sorted(missing)}")
+    if not (0.0 < fraction <= 1.0):
+        raise ValueError(f"fraction must be in (0, 1], got {fraction}")
+
+    dist = _haversine_km(
+        center_lat, center_lon,
+        fires_df["latitude"].to_numpy(), fires_df["longitude"].to_numpy(),
+    )
+    local = dist <= cap_km
+    n_local = int(local.sum())
+    if n_local == 0:
+        raise ValueError(
+            f"No fire pixels within cap_km={cap_km} of "
+            f"({center_lat:.4f}, {center_lon:.4f}); cannot define an FRP radius."
+        )
+
+    d_local = dist[local]
+    frp_local = fires_df["frp"].to_numpy()[local]
+    order = np.argsort(d_local)
+    d_sorted = d_local[order]
+    cum = np.cumsum(frp_local[order]) / frp_local.sum()
+    idx = int(np.searchsorted(cum, fraction))
+    idx = min(idx, n_local - 1)  # fraction==1.0 -> outermost pixel
+    radius_km = float(d_sorted[idx])
+
+    return dict(
+        radius_km=radius_km,
+        n_pixels=n_local,
+        frp_sum_mw=float(frp_local.sum()),
+        fraction=float(fraction),
+        cap_km=float(cap_km),
+        center_lat=float(center_lat),
+        center_lon=float(center_lon),
+    )
 
 
 def load_centroid_csv(centroid_csv: Path) -> pd.DataFrame:

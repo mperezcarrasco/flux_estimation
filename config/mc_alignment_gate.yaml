@@ -1,0 +1,19 @@
+# Plume-alignment gate for the Monte-Carlo ensembles (nb07 CO, nb08 NOx)
+# -----------------------------------------------------------------------
+# Single source of truth for the gate parameters, read by
+# notebooks/07_co_emission_error_mc.ipynb, notebooks/08_nox_emission_error_mc.ipynb
+# and tests/test_alignment_gate.py. Implementation: src/error_estimation.py
+# (`plume_axis_pca`, `angular_diff_deg`).
+#
+# Per member: AI-weighted PCA of AER_AI plume pixels (AI > threshold, inside the
+# saved plume boundary) within pca_radius_km of the *sampled* centroid gives the
+# plume axis; its sign is set toward the AI-weighted mass of pixels farther than
+# far_field_min_km. Members whose ERA5 wind direction (at the sampled injection
+# pressure) differs from that axis by more than max_wind_plume_angle_deg are
+# rejected. Values are the ones used for the manuscript ensembles (2026-07/10).
+
+pca_radius_km: 450.0              # km; pixels used for the PCA fit
+far_field_min_km: 150.0           # km; pixels beyond this resolve the axis sign
+max_wind_plume_angle_deg: 15.0    # degrees; rejection threshold
+min_pca_pixels: 20                # fewer plume pixels within pca_radius_km -> member fails ("PCA:")
+min_far_field_pixels: 3           # fewer far-field pixels -> member fails ("PCA:")
